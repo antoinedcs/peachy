@@ -1,24 +1,14 @@
 /* ================================================
-   PEACHY v3 — app.js
-   Chat local avec animations vivantes
-   Prêt à être branché sur un vrai serveur WebSocket
+   PEACHY v5 — app.js
+   Chat local — sans bots automatiques
    ================================================ */
 
-// ---- Constantes ----
-const DB_KEY   = 'peachy_v3_db';
-const HIST_KEY = 'peachy_v3_hist';
+const DB_KEY   = 'peachy_v5_db';
+const HIST_KEY = 'peachy_v5_hist';
 const MAX_MSG  = 100;
 
 let currentUser    = null;
 let currentChannel = 'général';
-
-const BOTS = ['Momo', 'Léa', 'Antoine', 'Chloé'];
-const BOT_REPLIES = [
-  '👀', 'Oki !', 'Vu 🍑', '+1', 'bg', 'Focus 💀',
-  'On gère 🔥', 'Merge ça vite', 'lgtm 👌', 'gg !',
-  'Ouais', 'Sur le coup 🤙', 'Validé ✅', 'Au top', 'Propre 🫡',
-  'lol wtf', 'ok mais...', 'hum hum', 'c koi ce message 😭', 'relou'
-];
 
 // ---- LocalStorage ----
 function getDB() {
@@ -160,10 +150,8 @@ function renderMsg(msg, scroll = true) {
     g.style.cssText = 'text-align:center;margin:6px 0;';
     g.innerHTML = `<span class="system-msg">✦ ${escHTML(msg.text)}</span>`;
   } else {
-    const isSelf  = msg.author === currentUser;
-    g.className   = 'msg-group' + (isSelf ? ' self' : '');
-
-    // Forme de bulle déterministe selon le timestamp
+    const isSelf   = msg.author === currentUser;
+    g.className    = 'msg-group' + (isSelf ? ' self' : '');
     const blobIdx  = msg.timestamp % 5;
     const blobClass = isSelf ? `sblob-${blobIdx}` : `blob-${blobIdx}`;
 
@@ -189,16 +177,10 @@ function sendMessage() {
   if (!text || !currentUser) return;
   input.value = '';
   updateChargeBar('');
-
-  // Pêche qui s'envole
   spawnFlyingPeach();
-
   const msg = { type: 'text', author: currentUser, text, timestamp: Date.now(), channel: currentChannel };
   saveMsg(currentChannel, msg);
   renderMsg(msg);
-
-  // 40% de chance de réponse bot
-  if (Math.random() < 0.40) simulateBot();
 }
 
 function sysMsg(ch, text) {
@@ -217,27 +199,7 @@ function spawnFlyingPeach() {
   p.style.left   = (rect.left + rect.width / 2 - 10) + 'px';
   p.style.bottom = (window.innerHeight - rect.bottom + rect.height / 2) + 'px';
   document.getElementById('peach-container').appendChild(p);
-  setTimeout(() => p.remove(), 1050);
-}
-
-// ---- Bots simulés ----
-function simulateBot() {
-  const bot   = BOTS[Math.floor(Math.random() * BOTS.length)];
-  const reply = BOT_REPLIES[Math.floor(Math.random() * BOT_REPLIES.length)];
-  const delay = 1200 + Math.random() * 2800;
-
-  const mascot = document.getElementById('mascot');
-  const tyText = document.getElementById('typing-text');
-  tyText.textContent = bot + ' écrit';
-  mascot.classList.add('visible');
-
-  setTimeout(() => {
-    mascot.classList.remove('visible');
-    tyText.textContent = '';
-    const msg = { type: 'text', author: bot, text: reply, timestamp: Date.now(), channel: currentChannel };
-    saveMsg(currentChannel, msg);
-    renderMsg(msg);
-  }, delay);
+  setTimeout(() => p.remove(), 950);
 }
 
 // ---- Barre de charge ----
@@ -245,7 +207,7 @@ function updateChargeBar(val) {
   const pct  = Math.min(100, (val.length / 500) * 100);
   const fill = document.getElementById('charge-fill');
   fill.style.width      = pct + '%';
-  fill.style.background = pct > 80 ? '#FF5575' : pct > 55 ? '#FFA832' : '#FF6E3A';
+  fill.style.background = pct > 80 ? '#FF4F6D' : pct > 55 ? '#FFA020' : '#FF6B35';
 }
 
 // ---- Utils ----
@@ -260,38 +222,6 @@ function escHTML(s) {
     .replace(/"/g, '&quot;');
 }
 
-// ---- Particules flottantes ----
-function spawnParticles() {
-  const bg     = document.createElement('div');
-  bg.id        = 'particle-bg';
-  document.body.appendChild(bg);
-
-  const colors = [
-    'rgba(255,110,58,.14)', 'rgba(255,148,100,.09)',
-    'rgba(255,85,117,.07)', 'rgba(255,168,50,.09)',
-    'rgba(176,168,255,.06)'
-  ];
-
-  for (let i = 0; i < 24; i++) {
-    const p    = document.createElement('div');
-    const size = 2 + Math.random() * 6;
-    const col  = colors[i % colors.length];
-    const dur  = 10 + Math.random() * 14;
-    const del  = Math.random() * -20;
-    p.className = 'particle';
-    p.style.cssText = `
-      width:  ${size}px;
-      height: ${size}px;
-      background: ${col};
-      left: ${Math.random() * 100}%;
-      bottom: -8px;
-      --dur: ${dur}s;
-      --delay: ${del}s;
-    `;
-    bg.appendChild(p);
-  }
-}
-
 // ---- Event Listeners ----
 document.getElementById('msg-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -303,6 +233,3 @@ document.getElementById('msg-input').addEventListener('input', e => updateCharge
 ['reg-pass', 'reg-user'].forEach(id =>
   document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); })
 );
-
-// ---- Init ----
-spawnParticles();
