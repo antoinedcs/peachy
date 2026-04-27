@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Peachy 🍑</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- =============================================
+       FOND : le verger est dessiné ici en canvas
+  ============================================== -->
+  <canvas id="fond"></canvas>
+
+  <!-- =============================================
+       PAGE 1 : connexion / inscription
+  ============================================== -->
+  <div id="page-connexion" class="page">
+
+    <!-- Grosse pêche décorative -->
+    <div id="grande-peche">🍑</div>
+    <h1 id="titre-app">Peachy</h1>
+    <p id="sous-titre">ton chat fruité ✨</p>
+
+    <!-- Onglets Connexion / Inscription -->
+    <div id="onglets">
+      <button class="onglet actif" onclick="afficherOnglet('connexion')">Connexion</button>
+      <button class="onglet"       onclick="afficherOnglet('inscription')">S'inscrire</button>
+    </div>
+
+    <!-- Formulaire Connexion -->
+    <div id="form-connexion" class="formulaire">
+      <label>Pseudo</label>
+      <input type="text"     id="co-pseudo"  placeholder="ton_pseudo" />
+      <label>Mot de passe</label>
+      <input type="password" id="co-mdp"     placeholder="••••••••" />
+      <button class="btn-orange" onclick="seConnecter()">Se connecter →</button>
+    </div>
+
+    <!-- Formulaire Inscription (caché par défaut) -->
+    <div id="form-inscription" class="formulaire" style="display:none">
+      <label>Pseudo</label>
+      <input type="text"     id="in-pseudo"  placeholder="choisis_un_pseudo" />
+      <label>Mot de passe</label>
+      <input type="password" id="in-mdp"     placeholder="min. 4 caractères" />
+      <button class="btn-orange" onclick="sInscrire()">Créer le compte →</button>
+    </div>
+
+    <!-- Message d'erreur ou de succès -->
+    <p id="message-auth"></p>
+
+  </div>
+
+
+  <!-- =============================================
+       PAGE 2 : le chat
+  ============================================== -->
+  <div id="page-chat" class="page" style="display:none">
+
+    <!-- Barre du haut -->
+    <div id="barre-haut">
+      <span id="nom-app">🍑 Peachy</span>
+
+      <!-- Boutons de salons -->
+      <div id="salons">
+        <button class="salon actif" onclick="changerSalon('général')">général</button>
+        <button class="salon"       onclick="changerSalon('random')">random</button>
+        <button class="salon"       onclick="changerSalon('aide')">aide</button>
+      </div>
+
+      <!-- Infos droite -->
+      <div id="barre-droite">
+        <span id="nb-connectes">1 en ligne 🟢</span>
+        <span id="bulle-pseudo"></span>
+        <button id="btn-deconnexion" onclick="seDeconnecter()">Quitter</button>
+      </div>
+    </div>
+
+    <!-- Zone des messages -->
+    <div id="zone-messages"></div>
+
+    <!-- Zone de saisie -->
+    <div id="zone-saisie">
+      <input
+        type="text"
+        id="champ-message"
+        placeholder="Écris un message…"
+        maxlength="300"
+        onkeydown="if(event.key==='Enter') envoyerMessage()"
+      />
+      <button id="btn-envoyer" onclick="envoyerMessage()">Envoyer 🍑</button>
+    </div>
+
+  </div>
+
+
+  <script src="js/app.js"></script>
+</body>
+</html>

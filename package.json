@@ -1,0 +1,9 @@
+{
+  "name": "peachy-chat",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "mysql2": "^3.22.3",
+    "ws": "^8.16.0"
+  }
+}
