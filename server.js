@@ -1,132 +1,84 @@
+// ================================
+// PEACHY - server.js
+// Serveur simple avec API GET/POST
+// ================================
+
 const http = require('http');
-const fs   = require('fs');
-const path = require('path');
-const WebSocket = require('ws');
-const crypto = require('crypto');
 
 const PORT = 3000;
 
-const utilisateurs = {};
-const historique = { 'général': [], 'random': [], 'aide': [] };
-const MAX_HISTORIQUE = 50;
-const connexions = {};
+// Tous les messages stockés en mémoire (tableau simple)
+let messages = [];
 
-const TYPES_MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.css':  'text/css',
-  '.js':   'application/javascript',
-};
-
-const serveurHTTP = http.createServer(function(req, res) {
-  let fichier = req.url === '/' ? '/index.html' : req.url;
-  const cheminFichier = path.join(__dirname, 'public', fichier);
-  const extension = path.extname(cheminFichier);
-  fs.readFile(cheminFichier, function(err, data) {
-    if (err) { res.writeHead(404); res.end('Fichier non trouvé'); return; }
-    res.writeHead(200, { 'Content-Type': TYPES_MIME[extension] || 'text/plain' });
-    res.end(data);
+// ---- Utilitaire : lire le body d'une requête POST ----
+function lireBody(req) {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', (morceau) => { body += morceau; });
+    req.on('end', () => { resolve(JSON.parse(body)); });
   });
-});
+}
 
-const wss = new WebSocket.Server({ server: serveurHTTP });
+// ---- Le serveur ----
+const serveur = http.createServer(async (req, res) => {
 
-wss.on('connection', function(ws) {
-  let pseudoConnecte = null;
+  // Autorise le frontend à contacter ce serveur (CORS)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Content-Type', 'application/json');
 
-  ws.on('message', function(donneesBrutes) {
-    let msg;
-    try { msg = JSON.parse(donneesBrutes); } catch(e) { return; }
-
-    switch (msg.type) {
-
-      case 'inscription': {
-        const { pseudo, mdp } = msg;
-        if (!pseudo || !mdp || pseudo.length < 2 || mdp.length < 4) {
-          envoyer(ws, { type: 'erreur', texte: 'Pseudo ou mot de passe trop court.' }); return;
-        }
-        if (utilisateurs[pseudo]) {
-          envoyer(ws, { type: 'erreur', texte: 'Ce pseudo est déjà pris !' }); return;
-        }
-        utilisateurs[pseudo] = { hash: hasher(mdp) };
-        connecter(ws, pseudo);
-        break;
-      }
-
-      case 'connexion': {
-        const { pseudo, mdp } = msg;
-        if (!utilisateurs[pseudo]) {
-          envoyer(ws, { type: 'erreur', texte: 'Aucun compte avec ce pseudo.' }); return;
-        }
-        if (utilisateurs[pseudo].hash !== hasher(mdp)) {
-          envoyer(ws, { type: 'erreur', texte: 'Mot de passe incorrect.' }); return;
-        }
-        if (connexions[pseudo]) {
-          envoyer(ws, { type: 'erreur', texte: 'Pseudo déjà connecté.' }); return;
-        }
-        connecter(ws, pseudo);
-        break;
-      }
-
-      case 'message': {
-        if (!pseudoConnecte) return;
-        const { salon, texte } = msg;
-        if (!texte || !texte.trim() || !historique[salon]) return;
-        const nouveauMsg = {
-          type: 'message', auteur: pseudoConnecte,
-          salon, texte: texte.trim().slice(0, 300), timestamp: Date.now(),
-        };
-        historique[salon].push(nouveauMsg);
-        if (historique[salon].length > MAX_HISTORIQUE) historique[salon].shift();
-        diffuser(nouveauMsg);
-        break;
-      }
-
-      case 'deconnexion':
-        deconnecter(ws, pseudoConnecte);
-        break;
-    }
-  });
-
-  ws.on('close', function() { if (pseudoConnecte) deconnecter(ws, pseudoConnecte); });
-  ws.on('error', function(err) { console.error('Erreur WS:', err.message); });
-
-  function connecter(ws, pseudo) {
-    pseudoConnecte = pseudo;
-    connexions[pseudo] = ws;
-    console.log(pseudo + ' connecté (' + Object.keys(connexions).length + ' en ligne)');
-    envoyer(ws, { type: 'connexion_ok', pseudo, connectes: Object.keys(connexions), historique });
-    diffuser({ type: 'systeme', texte: pseudo + ' a rejoint le chat 🍑', timestamp: Date.now() });
-    diffuserConnectes();
+  // Le navigateur envoie d'abord une requête OPTIONS avant le POST, on la gère
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
   }
 
-  function deconnecter(ws, pseudo) {
-    if (!pseudo || !connexions[pseudo]) return;
-    delete connexions[pseudo];
-    console.log(pseudo + ' déconnecté (' + Object.keys(connexions).length + ' en ligne)');
-    diffuser({ type: 'systeme', texte: pseudo + ' a quitté le chat', timestamp: Date.now() });
-    diffuserConnectes();
+  // ---- GET /messages ----
+  // Le frontend demande : "donne-moi tous les messages du salon X"
+  if (req.method === 'GET' && req.url.startsWith('/messages')) {
+
+    // Récupère le salon depuis l'URL : /messages?salon=général
+    const url = new URL(req.url, 'http://localhost');
+    const salon = url.searchParams.get('salon') || 'général';
+
+    // Filtre les messages du bon salon
+    const messagesDuSalon = messages.filter(m => m.salon === salon);
+
+    res.writeHead(200);
+    res.end(JSON.stringify(messagesDuSalon));
   }
+
+  // ---- POST /messages ----
+  // Le frontend envoie : "voici un nouveau message"
+  else if (req.method === 'POST' && req.url === '/messages') {
+
+    const data = await lireBody(req);
+
+    // On crée le message avec un timestamp
+    const nouveauMessage = {
+      auteur    : data.auteur,
+      texte     : data.texte,
+      salon     : data.salon,
+      timestamp : Date.now()
+    };
+
+    messages.push(nouveauMessage);
+    console.log(`[${nouveauMessage.salon}] ${nouveauMessage.auteur} : ${nouveauMessage.texte}`);
+
+    res.writeHead(201); // 201 = créé avec succès
+    res.end(JSON.stringify({ ok: true }));
+  }
+
+  // ---- Route inconnue ----
+  else {
+    res.writeHead(404);
+    res.end(JSON.stringify({ erreur: 'Route inconnue' }));
+  }
+
 });
 
-function envoyer(ws, data) {
-  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
-}
-function diffuser(data) {
-  const json = JSON.stringify(data);
-  Object.values(connexions).forEach(function(ws) {
-    if (ws.readyState === WebSocket.OPEN) ws.send(json);
-  });
-}
-function diffuserConnectes() {
-  diffuser({ type: 'liste_connectes', connectes: Object.keys(connexions) });
-}
-function hasher(mdp) {
-  return crypto.createHash('sha256').update(mdp).digest('hex');
-}
-
-serveurHTTP.listen(PORT, function() {
-  console.log('');
-  console.log('🍑 Peachy démarré !');
-  console.log('👉 http://localhost:' + PORT);
-  console.log('');
+serveur.listen(PORT, () => {
+  console.log(`Serveur Peachy démarré sur http://localhost:${PORT}`);
 });

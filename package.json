@@ -1,9 +1,16 @@
 {
-  "name": "peachy-chat",
+  "name": "peachy-server",
   "version": "1.0.0",
+  "description": "Serveur WebSocket temps réel pour Peachy 🍑",
   "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
   "dependencies": {
-    "mysql2": "^3.22.3",
-    "ws": "^8.16.0"
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
